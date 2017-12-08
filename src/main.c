@@ -81,36 +81,35 @@ ux_state_t ux;
 
 
 // Pick the text elements to display
-static unsigned char display_text_part() {
-
-  int charsToDisplay = MIN(lineBufferLength - current_text_pos,  MAX_CHARS_PER_LINE);
-  if (charsToDisplay <=0) {
-    return 0;
-  }
-  os_memmove(lineBuffer, linesBuffer+current_text_pos, charsToDisplay);
-  lineBuffer[charsToDisplay] = '\0';
-  current_text_pos += charsToDisplay;
-#ifdef TARGET_BLUE
-  os_memset(bagl_ui_text, 0, sizeof(bagl_ui_text));
-  bagl_ui_text[0].component.type = BAGL_LABEL;
-  bagl_ui_text[0].component.x = 4;
-  bagl_ui_text[0].component.y = text_y;
-  bagl_ui_text[0].component.width = 320;
-  bagl_ui_text[0].component.height = TEXT_HEIGHT;
-  // element.component.fill = BAGL_FILL;
-  bagl_ui_text[0].component.fgcolor = 0x000000;
-  bagl_ui_text[0].component.bgcolor = 0xf9f9f9;
-  bagl_ui_text[0].component.font_id = DEFAULT_FONT;
-  bagl_ui_text[0].text = lineBuffer;
-  text_y += TEXT_HEIGHT + TEXT_SPACE;
-#endif
-  return 1;
-}
+//static unsigned char display_text_part() {
+//
+//  int charsToDisplay = MIN(lineBufferLength - current_text_pos,  MAX_CHARS_PER_LINE);
+//  if (charsToDisplay <=0) {
+//    return 0;
+//  }
+//  os_memmove(lineBuffer, linesBuffer+current_text_pos, charsToDisplay);
+//  lineBuffer[charsToDisplay] = '\0';
+//  current_text_pos += charsToDisplay;
+//#ifdef TARGET_BLUE
+//  os_memset(bagl_ui_text, 0, sizeof(bagl_ui_text));
+//  bagl_ui_text[0].component.type = BAGL_LABEL;
+//  bagl_ui_text[0].component.x = 4;
+//  bagl_ui_text[0].component.y = text_y;
+//  bagl_ui_text[0].component.width = 320;
+//  bagl_ui_text[0].component.height = TEXT_HEIGHT;
+//  // element.component.fill = BAGL_FILL;
+//  bagl_ui_text[0].component.fgcolor = 0x000000;
+//  bagl_ui_text[0].component.bgcolor = 0xf9f9f9;
+//  bagl_ui_text[0].component.font_id = DEFAULT_FONT;
+//  bagl_ui_text[0].text = lineBuffer;
+//  text_y += TEXT_HEIGHT + TEXT_SPACE;
+//#endif
+//  return 1;
+//}
 
 static void ui_text(void) {
   current_text_pos = 0;
   uiState = UI_TEXT;
-  display_text_part();
 #ifdef TARGET_BLUE
   UX_DISPLAY(bagl_ui_text, NULL);
 #else
@@ -118,7 +117,8 @@ static void ui_text(void) {
 #endif
 }
 
-const bagl_element_t *signprocessor(const bagl_element_t *element) {
+const int signprocessor(const bagl_element_t *element) {
+  return 1;
   if (element->component.userid == 0x0) {
     return 1;
   }
@@ -137,6 +137,7 @@ unsigned int bagl_ui_sign_tx_button(unsigned int button_mask, unsigned int butto
     case BUTTON_EVT_RELEASED | BUTTON_RIGHT:
       if (currentStep < totalSteps) {
         currentStep++;
+        lineBufferSendTxProcessor(&signContext, currentStep);
         UX_REDISPLAY();
       } else {
         io_seproxyhal_touch_approve(NULL);
@@ -152,10 +153,18 @@ unsigned int bagl_ui_sign_tx_button(unsigned int button_mask, unsigned int butto
 
 
 static void ui_signtx(uint8_t steps) {
-  currentStep = 0;
-  totalSteps = steps;
-  // IMPLEMENT BLUE
-  UX_DISPLAY(bagl_ui_sign_tx, signprocessor);
+//  currentStep = 1;
+//  totalSteps = steps;
+////  lineBufferSendTxProcessor(&signContext, currentStep);
+//  // IMPLEMENT BLUE
+////  UX_DISPLAY(bagl_ui_sign_tx, NULL);
+//  ux.elements = bagl_ui_approval_send_nanos;
+//  ux.elements_count = steps+4;
+//  ux.button_push_handler = bagl_ui_sign_tx_button;
+//  ux.elements_preprocessor = NULL;
+//  UX_WAKE_UP();
+//  UX_REDISPLAY();
+  ui_text();
 }
 
 
@@ -230,11 +239,7 @@ unsigned short io_exchange_al(unsigned char channel, unsigned short tx_len) {
 unsigned int bagl_ui_text_review_nanos_button(unsigned int button_mask, unsigned int button_mask_counter) {
   switch (button_mask) {
     case BUTTON_EVT_RELEASED | BUTTON_RIGHT:
-      if (!display_text_part()) {
-        ui_approval();
-      } else {
-        UX_REDISPLAY();
-      }
+      ui_approval();
       break;
 
     case BUTTON_EVT_RELEASED | BUTTON_LEFT:
@@ -393,21 +398,13 @@ void nullifyContext() {
 }
 
 
-void handleSignTX(uint8_t *dataBuffer, volatile unsigned int *flags, volatile unsigned int *tx) {
+void handleSignTX(volatile unsigned int *flags, volatile unsigned int *tx) {
 
   parseTransaction(signContext.msg, signContext.hasRequesterPublicKey, &signContext.tx);
   signContext.isTx = true;
-  if (signContext.tx.type == TXTYPE_SEND) {
-
-    *flags |= IO_ASYNCH_REPLY;
-//    ui_signtx()
-  } else {
-//    initResponse();
-//    addToResponse(&txOut.type, 1);
-//    addToResponse(&txOut.amountSatoshi, 8);
-//    addToResponse(&txOut.recipientId, 8);
-//    *tx = flushResponseToIO(G_io_apdu_buffer);
-  }
+  *flags |= IO_ASYNCH_REPLY;
+  bagl_ui_sign_tx = bagl_ui_text_review_nanos;
+  ui_signtx(3);
 
 }
 static void lisk_main(void) {
@@ -475,14 +472,17 @@ static void lisk_main(void) {
                 THROW(0x9000);
                 break;
               case INS_SIGN:
-                handleSignTX(G_io_apdu_buffer + 2, &flags, &tx);
+                handleSignTX(&flags, &tx);
                 break;
 
               case INS_SIGN_MSG:
 //                                handleSignMSG(G_io_apdu_buffer+2, &flags, &tx);
-                getSignContext(G_io_apdu_buffer + 2, &signContext);
-                lineBufferLength = (uint8_t) (signContext.msgLength > 50 ? 50 : signContext.msgLength);
-                os_memmove(linesBuffer, signContext.msg, lineBufferLength);
+//                getSignContext(G_io_apdu_buffer + 2, &signContext);
+                lineBuffer[0] = 'c';
+                lineBuffer[1] = 'i';
+                lineBuffer[2] = '\0';
+
+//                os_memmove(lineBuffer, signContext.msg, MIN(50, signContext.msgLength));
                 flags |= IO_ASYNCH_REPLY;
 
                 ui_text();
@@ -553,12 +553,7 @@ unsigned char io_event(unsigned char channel) {
       if ((uiState == UI_TEXT) &&
           (os_seph_features() &
            SEPROXYHAL_TAG_SESSION_START_EVENT_FEATURE_SCREEN_BIG)) {
-        if (!display_text_part()) {
-          ui_approval();
-        } else {
-          UX_REDISPLAY();
-
-        }
+        ui_approval();
       } else {
         UX_DISPLAYED_EVENT();
       }
