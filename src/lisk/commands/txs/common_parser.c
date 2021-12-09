@@ -60,13 +60,8 @@ void parse_group_common() {
         THROW(INVALID_PARAMETER);
       }
       transaction_memmove(txContext.senderPublicKey, txContext.bufferPointer, ENCODED_PUB_KEY);
-      // Check that is equal to what we have in the request
-      if(lisk_secure_memcmp(reqContext.account.encodedPublicKey, txContext.senderPublicKey, ENCODED_PUB_KEY) != 0) {
-        THROW(INVALID_PARAMETER);
-      }
       txContext.tx_parsing_group = TX_ASSET;
       txContext.tx_parsing_state = BEGINNING;
-
       break;
     default:
       THROW(INVALID_STATE);
