@@ -33,7 +33,7 @@ endif
 
 # Main app configuration
 
-APPNAME = "Lisk 2.0 Dev"
+APPNAME = "Lisk"
 APP_LOAD_PARAMS += --path "44'/134'"
 LEGACY_ADDRESS_SUFFIX = "L"
 LEGACY_ADDRESS_SUFFIX_LENGTH = 1
