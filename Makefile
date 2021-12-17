@@ -23,7 +23,7 @@ ifeq (customCA.key,$(wildcard customCA.key))
 endif
 include $(BOLOS_SDK)/Makefile.defines
 
-APPVERSION = 2.0.2
+APPVERSION = 2.0.3
 APP_LOAD_PARAMS = --targetVersion "" --curve ed25519 $(COMMON_LOAD_PARAMS)
 ifeq ($(TARGET_NAME),TARGET_NANOX)
 APP_LOAD_PARAMS += --appFlags 0x240 # with BLE support
@@ -33,7 +33,7 @@ endif
 
 # Main app configuration
 
-APPNAME = "Lisk 2.0 Dev"
+APPNAME = "Lisk"
 APP_LOAD_PARAMS += --path "44'/134'"
 LEGACY_ADDRESS_SUFFIX = "L"
 LEGACY_ADDRESS_SUFFIX_LENGTH = 1
