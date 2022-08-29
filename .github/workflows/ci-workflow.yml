@@ -45,6 +45,8 @@ jobs:
   job_scan_build:
     name: Clang Static Analyzer
     runs-on: ubuntu-latest
+    permissions:
+      security-events: write
     container:
       image: ghcr.io/ledgerhq/ledger-app-builder/ledger-app-builder:latest
 
@@ -55,11 +57,9 @@ jobs:
       - name: Build with Clang Static Analyzer
         run: |
           make clean
-          scan-build --use-cc=clang -analyze-headers -enable-checker security -enable-checker unix -enable-checker valist -o scan-build --status-bugs make default
+          scan-build --use-cc=clang -analyze-headers -enable-checker security -enable-checker unix -enable-checker valist -o scan-build -sarif make default
 
-      - name: Upload scan result
-        uses: actions/upload-artifact@v2
-        if: failure()
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@v2
         with:
-          name: scan-build
-          path: scan-build
+          sarif_file: scan-build
