@@ -1,0 +1,66 @@
+name: Compilation & tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+      - develop
+  pull_request:
+    branches:
+      - master
+      - develop
+
+jobs:
+  nano_build:
+    name: Build application for NanoS, X and S+
+    strategy:
+      matrix:
+        include:
+          - SDK: "$NANOS_SDK"
+            artifact: app-nanos
+          - SDK: "$NANOX_SDK"
+            artifact: app-nanox
+          - SDK: "$NANOSP_SDK"
+            artifact: app-nanosp
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ledgerhq/ledger-app-builder/ledger-app-builder:latest
+
+    steps:
+      - name: Clone
+        uses: actions/checkout@v2
+
+      - name: Build
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          make BOLOS_SDK=${{ matrix.SDK }}
+
+      - name: Upload app binary
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.artifact }}
+          path: bin
+
+  job_scan_build:
+    name: Clang Static Analyzer
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    container:
+      image: ghcr.io/ledgerhq/ledger-app-builder/ledger-app-builder:latest
+
+    steps:
+      - name: Clone
+        uses: actions/checkout@v2
+
+      - name: Build with Clang Static Analyzer
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          scan-build --use-cc=clang -analyze-headers -enable-checker security -enable-checker unix -enable-checker valist -o scan-build -sarif make default
+          python scripts/merge_sarif.py scan-build
+
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: results-merged.sarif
