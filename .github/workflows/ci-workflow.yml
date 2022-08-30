@@ -56,10 +56,11 @@ jobs:
 
       - name: Build with Clang Static Analyzer
         run: |
-          make clean
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           scan-build --use-cc=clang -analyze-headers -enable-checker security -enable-checker unix -enable-checker valist -o scan-build -sarif make default
+          python scripts/merge_sarif.py scan-build
 
       - name: Upload SARIF file
         uses: github/codeql-action/upload-sarif@v2
         with:
-          sarif_file: scan-build
+          sarif_file: results-merged.sarif
